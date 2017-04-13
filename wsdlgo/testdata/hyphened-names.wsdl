@@ -1,6 +1,7 @@
 <wsdl:definitions>
   <wsdl:types>
     <xsd:schema>
+
       <xsd:element name="my-type">
         <xsd:complexType>
           <xsd:all>
@@ -8,6 +9,12 @@
           </xsd:all>
         </xsd:complexType>
       </xsd:element>
+
+      <xsd:simpleType name="string-type">
+        <xsd:restriction base="xsd:string">
+        </xsd:restriction>
+      </xsd:simpleType>
+
     </xsd:schema>
   </wsdl:types>
 </wsdl:definitions>

@@ -2,6 +2,9 @@ package internal
 
 import ()
 
+// StringType was auto-generated from WSDL.
+type StringType string
+
 // MyType was auto-generated from WSDL.
 type MyType struct {
 	MyField string `xml:"my-field,omitempty" json:"my-field,omitempty" yaml:"my-field,omitempty"`
