@@ -34,6 +34,7 @@ var EncoderCases = []struct {
 	G string
 	E error
 }{
+	{F: "hyphened-names.wsdl", G: "hyphened-names.golden", E: nil},
 	{F: "broken.wsdl", E: io.EOF},
 	{F: "w3cexample1.wsdl", G: "w3cexample1.golden", E: nil},
 	{F: "w3cexample2.wsdl", G: "w3cexample2.golden", E: nil},

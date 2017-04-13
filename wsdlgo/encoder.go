@@ -909,7 +909,7 @@ func (ge *goEncoder) genGoStruct(w io.Writer, d *wsdl.Definitions, ct *wsdl.Comp
 	} else if len(ct.Sequence.ComplexTypes) == 0 && len(ct.Sequence.Elements) == 0 {
 		c++
 	}
-	name := strings.Title(ct.Name)
+	name := unhyphen(strings.Title(ct.Name))
 	ge.writeComments(w, name, ct.Doc)
 	if ct.Sequence != nil && ct.Sequence.Any != nil {
 		fmt.Fprintf(w, "type %s []interface{}\n\n", name)
@@ -1016,7 +1016,7 @@ func (ge *goEncoder) genElementField(w io.Writer, el *wsdl.Element) {
 		}
 	}
 	tag := el.Name
-	fmt.Fprintf(w, "%s ", strings.Title(el.Name))
+	fmt.Fprintf(w, "%s ", unhyphen(strings.Title(el.Name)))
 	if el.Max != "" && el.Max != "1" {
 		fmt.Fprintf(w, "[]")
 		if slicetype != "" {
@@ -1056,4 +1056,8 @@ func (ge *goEncoder) writeComments(w io.Writer, typeName, comment string) {
 		fmt.Fprintf(w, "%s\n", line)
 	}
 	return
+}
+
+func unhyphen(s string) string {
+	return strings.Replace(s, "-", "", -1)
 }

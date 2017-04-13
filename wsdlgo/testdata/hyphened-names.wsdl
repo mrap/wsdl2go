@@ -1,0 +1,13 @@
+<wsdl:definitions>
+  <wsdl:types>
+    <xsd:schema>
+      <xsd:element name="my-type">
+        <xsd:complexType>
+          <xsd:all>
+            <xsd:element name="my-field" type="string"/>
+          </xsd:all>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
+  </wsdl:types>
+</wsdl:definitions>
