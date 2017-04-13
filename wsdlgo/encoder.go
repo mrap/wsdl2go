@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
-	"unicode"
 
 	"github.com/fiorix/wsdl2go/wsdl"
 )
@@ -157,7 +156,6 @@ func (ge *goEncoder) encode(w io.Writer, d *wsdl.Definitions) error {
 	if err != nil {
 		return fmt.Errorf("wsdl import: %v", err)
 	}
-	d.PortType.Name = upperFirst(camelCase(d.PortType.Name))
 	ge.cacheTypes(d)
 	ge.cacheFuncs(d)
 	ge.cacheMessages(d)
@@ -323,7 +321,6 @@ func (ge *goEncoder) cacheElements(ct []*wsdl.Element) {
 func (ge *goEncoder) cacheFuncs(d *wsdl.Definitions) {
 	// operations are declared as boilerplate go functions
 	for _, v := range d.PortType.Operations {
-		v.Name = upperFirst(v.Name)
 		ge.funcs[v.Name] = v
 	}
 	ge.funcnames = make([]string, len(ge.funcs))
@@ -343,7 +340,6 @@ func (ge *goEncoder) cacheMessages(d *wsdl.Definitions) {
 
 func (ge *goEncoder) cacheSOAPOperations(d *wsdl.Definitions) {
 	for _, v := range d.Binding.Operations {
-		v.Name = upperFirst(v.Name)
 		ge.soapOps[v.Name] = v
 	}
 }
@@ -393,10 +389,11 @@ func (ge *goEncoder) writeInterfaceFuncs(w io.Writer, d *wsdl.Definitions) error
 		in[0] = renameParam(in[0], "α")
 		out[0] = renameParam(out[0], "β")
 		var doc bytes.Buffer
-		ge.writeComments(&doc, op.Name, op.Doc)
+		name := goID(op.Name, true)
+		ge.writeComments(&doc, name, op.Doc)
 		funcs[i] = &interfaceTypeFunc{
 			Doc:    doc.String(),
-			Name:   op.Name,
+			Name:   name,
 			Input:  strings.Join(in, ","),
 			Output: strings.Join(out, ","),
 		}
@@ -451,7 +448,8 @@ func (ge *goEncoder) writeGoFuncs(w io.Writer, d *wsdl.Definitions) error {
 	}
 	for _, fn := range ge.funcnames {
 		op := ge.funcs[fn]
-		ge.writeComments(w, op.Name, op.Doc)
+		name := goID(op.Name, true)
+		ge.writeComments(w, name, op.Doc)
 		inParams, err := ge.inputParams(op)
 		if err != nil {
 			return err
@@ -474,7 +472,7 @@ func (ge *goEncoder) writeGoFuncs(w io.Writer, d *wsdl.Definitions) error {
 			ge.needsStdPkg["context"] = true
 			in = append([]string{"ctx context.Context"}, in...)
 			ge.fixParamConflicts(in, out)
-			fn := ge.fixFuncNameConflicts(op.Name)
+			fn := ge.fixFuncNameConflicts(name)
 			fmt.Fprintf(w, "func %s(%s) (%s) {\nreturn %s\n}\n\n",
 				fn,
 				strings.Join(in, ","),
@@ -527,8 +525,8 @@ func (ge *goEncoder) writeSOAPFunc(w io.Writer, d *wsdl.Definitions, op *wsdl.Op
 		RetPtr        bool
 		RetDef        string
 	}{
-		lowerFirst(d.PortType.Name),
-		op.Name,
+		goID(d.PortType.Name, false),
+		goID(op.Name, true),
 		strings.Join(in, ","),
 		strings.Join(out, ","),
 		strings.TrimPrefix(typ[1], "*"),
@@ -708,7 +706,7 @@ func (ge *goEncoder) wsdl2goType(t string) string {
 	case "anysequence":
 		return "interface{}"
 	default:
-		return "*" + strings.Title(strings.Replace(v, ".", "", -1))
+		return "*" + goID(strings.Replace(v, ".", "", -1), true)
 	}
 }
 
@@ -767,7 +765,7 @@ func (ge *goEncoder) writeGoTypes(w io.Writer, d *wsdl.Definitions) error {
 	for _, name := range ge.sortedSimpleTypes() {
 		st := ge.stypes[name]
 		if st.Restriction != nil {
-			name := strings.Title(camelCase(st.Name))
+			name := goID(st.Name, true)
 			ge.writeComments(&b, name, "")
 			fmt.Fprintf(&b, "type %s %s\n\n", name, ge.wsdl2goType(st.Restriction.Base))
 			ge.genValidator(&b, name, st.Restriction)
@@ -782,8 +780,9 @@ func (ge *goEncoder) writeGoTypes(w io.Writer, d *wsdl.Definitions) error {
 				ntypes[i] = ge.wsdl2goType(t)
 			}
 			doc := st.Name + " is a union of: " + strings.Join(ntypes, ", ")
-			ge.writeComments(&b, st.Name, doc)
-			fmt.Fprintf(&b, "type %s interface{}\n\n", st.Name)
+			name := goID(st.Name, true)
+			ge.writeComments(&b, name, doc)
+			fmt.Fprintf(&b, "type %s interface{}\n\n", name)
 		}
 	}
 	var err error
@@ -912,7 +911,7 @@ func (ge *goEncoder) genGoStruct(w io.Writer, d *wsdl.Definitions, ct *wsdl.Comp
 	} else if len(ct.Sequence.ComplexTypes) == 0 && len(ct.Sequence.Elements) == 0 {
 		c++
 	}
-	name := unhyphen(strings.Title(ct.Name))
+	name := goID(ct.Name, true)
 	ge.writeComments(w, name, ct.Doc)
 	if ct.Sequence != nil && ct.Sequence.Any != nil {
 		fmt.Fprintf(w, "type %s []interface{}\n\n", name)
@@ -1019,11 +1018,11 @@ func (ge *goEncoder) genElementField(w io.Writer, el *wsdl.Element) {
 		}
 	}
 	tag := el.Name
-	fmt.Fprintf(w, "%s ", unhyphen(strings.Title(el.Name)))
+	fmt.Fprintf(w, "%s ", goID(el.Name, true))
 	if el.Max != "" && el.Max != "1" {
 		fmt.Fprintf(w, "[]")
 		if slicetype != "" {
-			tag = el.Name + ">" + slicetype
+			tag += ">" + slicetype
 		}
 	}
 	typ := ge.wsdl2goType(el.Type)
@@ -1068,33 +1067,17 @@ func lowerFirst(s string) string {
 	return strings.ToLower(s[:1]) + s[1:]
 }
 
-func upperFirst(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
-}
-
-func camelCase(s string) string {
+func goID(s string, isPublic bool) string {
 	if len(s) == 0 {
 		return s
 	}
 
-	var first string
-	if startsWithUpper(s) {
-		first = s[:1]
+	s = unhyphen(strings.Title(s))
+	if !isPublic {
+		return lowerFirst(s)
 	} else {
-		first = lowerFirst(s[:1])
+		return s
 	}
-
-	return unhyphen(first + strings.Title(s)[1:])
-}
-
-func startsWithUpper(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	return unicode.IsUpper(rune(s[0]))
 }
 
 func unhyphen(s string) string {
